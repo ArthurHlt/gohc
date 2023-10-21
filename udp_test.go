@@ -4,6 +4,7 @@ import (
 	"github.com/ArthurHlt/gohc/testhelpers"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"os"
 	"sync/atomic"
 	"time"
 
@@ -69,6 +70,11 @@ var _ = Describe("Udp", func() {
 			})
 		})
 		When("No receive payload", func() {
+			BeforeEach(func() {
+				if os.Getenv("GITHUB_ACTION") != "" {
+					Skip("Skip icmp test on github action")
+				}
+			})
 			When("ping succeed and no port unreachable received", func() {
 				It("should return nil", func() {
 					var ops int64

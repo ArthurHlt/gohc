@@ -3,6 +3,7 @@ package gohc_test
 import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"os"
 	"time"
 
 	. "github.com/ArthurHlt/gohc"
@@ -10,6 +11,11 @@ import (
 
 var _ = Describe("Icmp", func() {
 	Context("Check", func() {
+		BeforeEach(func() {
+			if os.Getenv("GITHUB_ACTION") != "" {
+				Skip("Skip icmp test on github action")
+			}
+		})
 		It("should return nil on the most basic test when ping succeed", func() {
 			hc := NewIcmpHealthCheck(&IcmpOpt{})
 
