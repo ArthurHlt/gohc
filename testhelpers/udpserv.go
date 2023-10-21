@@ -1,7 +1,6 @@
 package testhelpers
 
 import (
-	"fmt"
 	"net"
 	"time"
 )
@@ -54,7 +53,6 @@ func (u *UdpServer) Run() error {
 		u.conn.SetReadDeadline(time.Now().Add(5 * time.Second))
 		n, addr, err := u.conn.ReadFrom(buf)
 		if err != nil {
-			fmt.Println(err)
 			continue
 		}
 		if u.handler != nil {
