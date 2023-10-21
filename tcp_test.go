@@ -7,8 +7,6 @@ import (
 	. "github.com/onsi/gomega"
 	"net"
 	"sync/atomic"
-
-	"time"
 )
 
 var _ = Describe("Tcp", func() {
@@ -24,7 +22,7 @@ var _ = Describe("Tcp", func() {
 			lis.Close()
 		})
 		It("should return nil on the most basic test", func() {
-			hc := NewTcpHealthCheck(&TcpConfig{}, 5*time.Second, false, nil)
+			hc := NewTcpHealthCheck(&TcpOpt{})
 
 			err := hc.Check(lis.Addr().String())
 
@@ -32,7 +30,7 @@ var _ = Describe("Tcp", func() {
 		})
 		It("should return an error when could not connect", func() {
 			lis.Close()
-			hc := NewTcpHealthCheck(&TcpConfig{}, 5*time.Second, false, nil)
+			hc := NewTcpHealthCheck(&TcpOpt{})
 
 			err := hc.Check(lis.Addr().String())
 
@@ -49,11 +47,11 @@ var _ = Describe("Tcp", func() {
 				Expect(string(buf[:reqLen])).To(Equal("test"))
 				atomic.AddInt64(&ops, 1)
 			})
-			hc := NewTcpHealthCheck(&TcpConfig{
-				Send: &PayloadConfig{
+			hc := NewTcpHealthCheck(&TcpOpt{
+				Send: &Payload{
 					Text: "test",
 				},
-			}, 5*time.Second, false, nil)
+			})
 
 			err := hc.Check(lis.Addr().String())
 
@@ -70,8 +68,8 @@ var _ = Describe("Tcp", func() {
 				Expect(err).To(BeNil())
 				atomic.AddInt64(&ops, 1)
 			})
-			hc := NewTcpHealthCheck(&TcpConfig{
-				Receive: []*PayloadConfig{
+			hc := NewTcpHealthCheck(&TcpOpt{
+				Receive: []*Payload{
 					{
 						Text: "test",
 					},
@@ -79,7 +77,7 @@ var _ = Describe("Tcp", func() {
 						Text: "test2",
 					},
 				},
-			}, 5*time.Second, false, nil)
+			})
 
 			err := hc.Check(lis.Addr().String())
 			testhelpers.EventuallyAtomic(&ops).Should(Equal(1))
@@ -95,8 +93,8 @@ var _ = Describe("Tcp", func() {
 				Expect(err).To(BeNil())
 				atomic.AddInt64(&ops, 1)
 			})
-			hc := NewTcpHealthCheck(&TcpConfig{
-				Receive: []*PayloadConfig{
+			hc := NewTcpHealthCheck(&TcpOpt{
+				Receive: []*Payload{
 					{
 						Text: "test",
 					},
@@ -104,7 +102,7 @@ var _ = Describe("Tcp", func() {
 						Text: "test2",
 					},
 				},
-			}, 5*time.Second, false, nil)
+			})
 
 			err := hc.Check(lis.Addr().String())
 			testhelpers.EventuallyAtomic(&ops).Should(Equal(1))

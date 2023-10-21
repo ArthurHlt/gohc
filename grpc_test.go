@@ -10,7 +10,6 @@ import (
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 	"log"
 	"net"
-	"time"
 )
 
 var _ = Describe("Grpc", func() {
@@ -38,14 +37,14 @@ var _ = Describe("Grpc", func() {
 			lis.Close()
 		})
 		It("should return nil on the most basic test", func() {
-			hc := NewGrpcHealthCheck(&GrpcConfig{}, 5*time.Second, false, nil)
+			hc := NewGrpcHealthCheck(&GrpcOpt{})
 
 			err := hc.Check(lis.Addr().String())
 
 			Expect(err).To(BeNil())
 		})
 		It("should return an error when check fail", func() {
-			hc := NewGrpcHealthCheck(&GrpcConfig{}, 5*time.Second, false, nil)
+			hc := NewGrpcHealthCheck(&GrpcOpt{})
 			healthServer.SetServingStatus("", healthpb.HealthCheckResponse_NOT_SERVING)
 
 			err := hc.Check(lis.Addr().String())
@@ -55,7 +54,7 @@ var _ = Describe("Grpc", func() {
 		})
 		When("the service is not empty", func() {
 			It("should return an error when service not found", func() {
-				hc := NewGrpcHealthCheck(&GrpcConfig{ServiceName: "test"}, 5*time.Second, false, nil)
+				hc := NewGrpcHealthCheck(&GrpcOpt{ServiceName: "test"})
 				//healthServer.SetServingStatus("test", healthpb.HealthCheckResponse_NOT_SERVING)
 
 				err := hc.Check(lis.Addr().String())
@@ -64,7 +63,7 @@ var _ = Describe("Grpc", func() {
 				Expect(err.Error()).To(ContainSubstring("NotFound"))
 			})
 			It("should return nil when service is found and status serving", func() {
-				hc := NewGrpcHealthCheck(&GrpcConfig{ServiceName: "test"}, 5*time.Second, false, nil)
+				hc := NewGrpcHealthCheck(&GrpcOpt{ServiceName: "test"})
 				healthServer.SetServingStatus("test", healthpb.HealthCheckResponse_SERVING)
 
 				err := hc.Check(lis.Addr().String())
@@ -99,8 +98,11 @@ var _ = Describe("Grpc", func() {
 			lis.Close()
 		})
 		It("should return nil on the most basic test", func() {
-			hc := NewGrpcHealthCheck(&GrpcConfig{}, 5*time.Second, true, &tls.Config{
-				InsecureSkipVerify: true,
+			hc := NewGrpcHealthCheck(&GrpcOpt{
+				TlsEnabled: true,
+				TlsConfig: &tls.Config{
+					InsecureSkipVerify: true,
+				},
 			})
 
 			err := hc.Check(lis.Addr().String())

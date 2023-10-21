@@ -8,25 +8,34 @@ import (
 	"time"
 )
 
+// TcpOpt Describes the TCP health check specific options.
+type TcpOpt struct {
+	// TCP specific payload.
+	// Empty payloads imply a connect-only health check.
+	Send *Payload
+	// When checking the response, “fuzzy” matching is performed such that each
+	// binary block must be found, and in the order specified, but not
+	// necessarily contiguous.
+	Receive []*Payload
+	// Timeout for connection and for each receive data. If left empty (default to 5s)
+	Timeout time.Duration
+	// TlsEnabled set to true if the gRPC health check request should be sent over TLS.
+	TlsEnabled bool
+	// TlsConfig specifies the TLS configuration to use for TLS enabled gRPC health check requests.
+	TlsConfig *tls.Config
+	// AltPort specifies the port to use for gRPC health check requests.
+	// If left empty it taks the port from host during check.
+	AltPort uint32
+}
+
 type TcpHealthCheck struct {
-	hcConf     *TcpConfig
-	tlsEnabled bool
-	timeout    time.Duration
-	tlsConf    *tls.Config
-	altPort    uint32
+	opt *TcpOpt
 }
 
-func NewTcpHealthCheck(hcConf *TcpConfig, timeout time.Duration, tlsEnabled bool, tlsConf *tls.Config) *TcpHealthCheck {
+func NewTcpHealthCheck(opt *TcpOpt) *TcpHealthCheck {
 	return &TcpHealthCheck{
-		hcConf:     hcConf,
-		tlsEnabled: tlsEnabled,
-		timeout:    timeout,
-		tlsConf:    tlsConf,
+		opt: opt,
 	}
-}
-
-func (h *TcpHealthCheck) SetAltPort(altPort uint32) {
-	h.altPort = altPort
 }
 
 func (h *TcpHealthCheck) Check(host string) error {
@@ -36,15 +45,20 @@ func (h *TcpHealthCheck) Check(host string) error {
 	}
 	defer netConn.Close()
 
-	if h.hcConf.Send != nil {
-		_, err = netConn.Write(h.hcConf.Send.GetData())
+	timeout := h.opt.Timeout
+	if timeout == 0 {
+		timeout = 5 * time.Second
+	}
+
+	if h.opt.Send != nil {
+		_, err = netConn.Write(h.opt.Send.GetData())
 		if err != nil {
 			return err
 		}
 	}
 
-	for _, toReceive := range h.hcConf.Receive {
-		err := netConn.SetReadDeadline(time.Now().Add(h.timeout))
+	for _, toReceive := range h.opt.Receive {
+		err := netConn.SetReadDeadline(time.Now().Add(timeout))
 		if err != nil {
 			return err
 		}
@@ -63,15 +77,21 @@ func (h *TcpHealthCheck) Check(host string) error {
 
 func (h *TcpHealthCheck) makeNetConn(host string) (net.Conn, error) {
 	var err error
-	host, err = FormatHost(host, h.altPort)
+
+	timeout := h.opt.Timeout
+	if timeout == 0 {
+		timeout = 5 * time.Second
+	}
+
+	host, err = FormatHost(host, h.opt.AltPort)
 	if err != nil {
 		return nil, err
 	}
 	dialer := &net.Dialer{
-		Timeout: h.timeout,
+		Timeout: timeout,
 	}
-	if h.tlsEnabled {
-		return tls.DialWithDialer(dialer, "tcp", host, h.tlsConf)
+	if h.opt.TlsEnabled {
+		return tls.DialWithDialer(dialer, "tcp", host, h.opt.TlsConfig)
 	}
 	return dialer.Dial("tcp", host)
 }

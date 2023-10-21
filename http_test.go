@@ -27,9 +27,7 @@ var _ = Describe("Http", func() {
 			It("should return nil on the most basic test on path / and 200 status code", func() {
 				server.AppendHandlers(ghttp.RespondWith(200, "OK"))
 
-				hc := NewHttpHealthCheck(&HttpConfig{
-					Path: "/",
-				}, 5*time.Second, false, nil)
+				hc := NewHttpHealthCheck(&HttpOpt{})
 
 				err := hc.Check(urlToHost(server.URL()))
 				Expect(err).To(BeNil())
@@ -37,9 +35,7 @@ var _ = Describe("Http", func() {
 			It("should return an error when status code is not expected", func() {
 				server.AppendHandlers(ghttp.RespondWith(404, "NOT FOUND"))
 
-				hc := NewHttpHealthCheck(&HttpConfig{
-					Path: "/",
-				}, 5*time.Second, false, nil)
+				hc := NewHttpHealthCheck(&HttpOpt{})
 
 				err := hc.Check(urlToHost(server.URL()))
 				Expect(err).ToNot(BeNil())
@@ -50,9 +46,9 @@ var _ = Describe("Http", func() {
 					time.Sleep(10 * time.Millisecond)
 				})
 
-				hc := NewHttpHealthCheck(&HttpConfig{
-					Path: "/",
-				}, 1*time.Nanosecond, false, nil)
+				hc := NewHttpHealthCheck(&HttpOpt{
+					Timeout: 1 * time.Nanosecond,
+				})
 
 				err := hc.Check(urlToHost(server.URL()))
 				Expect(err).ToNot(BeNil())
@@ -61,13 +57,12 @@ var _ = Describe("Http", func() {
 			It("should return nil when status code is in expected range", func() {
 				server.AppendHandlers(ghttp.RespondWith(404, "NOT FOUND"))
 
-				hc := NewHttpHealthCheck(&HttpConfig{
-					Path: "/",
+				hc := NewHttpHealthCheck(&HttpOpt{
 					ExpectedStatuses: &IntRange{
 						Start: 400,
 						End:   500,
 					},
-				}, 5*time.Second, false, nil)
+				})
 
 				err := hc.Check(urlToHost(server.URL()))
 				Expect(err).To(BeNil())
@@ -78,13 +73,12 @@ var _ = Describe("Http", func() {
 					Expect(req.Header.Values("X-Test-Append")).To(Equal([]string{"test1", "test2"}))
 				})
 
-				hc := NewHttpHealthCheck(&HttpConfig{
-					Path: "/",
+				hc := NewHttpHealthCheck(&HttpOpt{
 					Headers: map[string][]string{
 						"X-Test":        {"test"},
 						"X-Test-Append": {"test1", "test2"},
 					},
-				}, 5*time.Second, false, nil)
+				})
 
 				err := hc.Check(urlToHost(server.URL()))
 				Expect(err).To(BeNil())
@@ -95,10 +89,9 @@ var _ = Describe("Http", func() {
 					Expect(req.Method).To(Equal("POST"))
 				})
 
-				hc := NewHttpHealthCheck(&HttpConfig{
-					Path:   "/",
+				hc := NewHttpHealthCheck(&HttpOpt{
 					Method: http.MethodPost,
-				}, 5*time.Second, false, nil)
+				})
 
 				err := hc.Check(urlToHost(server.URL()))
 				Expect(err).To(BeNil())
@@ -109,10 +102,9 @@ var _ = Describe("Http", func() {
 					Expect(req.Host).To(Equal("myhost"))
 				})
 
-				hc := NewHttpHealthCheck(&HttpConfig{
+				hc := NewHttpHealthCheck(&HttpOpt{
 					Host: "myhost",
-					Path: "/",
-				}, 5*time.Second, false, nil)
+				})
 
 				err := hc.Check(urlToHost(server.URL()))
 				Expect(err).To(BeNil())
@@ -129,12 +121,10 @@ var _ = Describe("Http", func() {
 				portInt, err := strconv.Atoi(port)
 				Expect(err).To(BeNil())
 
-				hc := NewHttpHealthCheck(&HttpConfig{
-					Host: "myhost",
-					Path: "/",
-				}, 5*time.Second, false, nil)
-
-				hc.SetAltPort(uint32(portInt))
+				hc := NewHttpHealthCheck(&HttpOpt{
+					Host:    "myhost",
+					AltPort: uint32(portInt),
+				})
 
 				err = hc.Check(simpleHost + ":1")
 				Expect(err).To(BeNil())
@@ -144,12 +134,11 @@ var _ = Describe("Http", func() {
 				It("should return nil if received payload contains what user wanted", func() {
 					server.AppendHandlers(ghttp.RespondWith(200, "long text contains ok here"))
 
-					hc := NewHttpHealthCheck(&HttpConfig{
-						Path: "/",
-						Receive: &PayloadConfig{
+					hc := NewHttpHealthCheck(&HttpOpt{
+						Receive: &Payload{
 							Text: "ok",
 						},
-					}, 5*time.Second, false, nil)
+					})
 
 					err := hc.Check(urlToHost(server.URL()))
 					Expect(err).To(BeNil())
@@ -157,12 +146,11 @@ var _ = Describe("Http", func() {
 				It("should return an error if received payload doesn't contains what user wanted", func() {
 					server.AppendHandlers(ghttp.RespondWith(200, "well not here"))
 
-					hc := NewHttpHealthCheck(&HttpConfig{
-						Path: "/",
-						Receive: &PayloadConfig{
+					hc := NewHttpHealthCheck(&HttpOpt{
+						Receive: &Payload{
 							Text: "ok",
 						},
-					}, 5*time.Second, false, nil)
+					})
 
 					err := hc.Check(urlToHost(server.URL()))
 					Expect(err).ToNot(BeNil())
@@ -175,12 +163,11 @@ var _ = Describe("Http", func() {
 						Expect(string(body)).To(Equal("ok"))
 					})
 
-					hc := NewHttpHealthCheck(&HttpConfig{
-						Path: "/",
-						Send: &PayloadConfig{
+					hc := NewHttpHealthCheck(&HttpOpt{
+						Send: &Payload{
 							Text: "ok",
 						},
-					}, 5*time.Second, false, nil)
+					})
 
 					err := hc.Check(urlToHost(server.URL()))
 					Expect(err).To(BeNil())
@@ -202,9 +189,7 @@ var _ = Describe("Http", func() {
 		It("should return an error if tls not enabled", func() {
 			server.AppendHandlers(ghttp.RespondWith(200, "OK"))
 
-			hc := NewHttpHealthCheck(&HttpConfig{
-				Path: "/",
-			}, 5*time.Second, false, nil)
+			hc := NewHttpHealthCheck(&HttpOpt{})
 
 			err := hc.Check(urlToHost(server.URL()))
 			Expect(err).ToNot(BeNil())
@@ -213,12 +198,12 @@ var _ = Describe("Http", func() {
 		It("should return nil on the most basic test on path / and 200 status code", func() {
 			server.AppendHandlers(ghttp.RespondWith(200, "OK"))
 
-			hc := NewHttpHealthCheck(&HttpConfig{
-				Path: "/",
-			}, 5*time.Second, true,
-				&tls.Config{
+			hc := NewHttpHealthCheck(&HttpOpt{
+				TlsEnabled: true,
+				TlsConfig: &tls.Config{
 					InsecureSkipVerify: true,
-				})
+				},
+			})
 
 			err := hc.Check(urlToHost(server.URL()))
 			Expect(err).To(BeNil())

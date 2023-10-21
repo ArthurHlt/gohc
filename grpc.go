@@ -14,25 +14,38 @@ import (
 	"time"
 )
 
+// GrpcOpt Describes the gRPC health check specific options.
+type GrpcOpt struct {
+	// An optional service name parameter which will be sent to gRPC service in
+	// `grpc.health.v1.HealthCheckRequest
+	// <https://github.com/grpc/grpc/blob/master/src/proto/grpc/health/v1/health.proto#L20>`_.
+	// message. See `gRPC health-checking overview
+	// <https://github.com/grpc/grpc/blob/master/doc/health-checking.md>`_ for more information.
+	ServiceName string
+	// The value of the :authority header in the gRPC health check request. If
+	// left empty (default value) this will be host in check.
+	// The authority header can be customized for a specific endpoint by setting
+	// the HealthCheckConfig.hostname field.
+	Authority string
+	// Timeout for the gRPC health check request. If left empty (default to 5s)
+	Timeout time.Duration
+	// TlsEnabled set to true if the gRPC health check request should be sent over TLS.
+	TlsEnabled bool
+	// TlsConfig specifies the TLS configuration to use for TLS enabled gRPC health check requests.
+	TlsConfig *tls.Config
+	// AltPort specifies the port to use for gRPC health check requests.
+	// If left empty it taks the port from host during check.
+	AltPort uint32
+}
+
 type GrpcHealthCheck struct {
-	conf       *GrpcConfig
-	tlsEnabled bool
-	timeout    time.Duration
-	tlsConf    *tls.Config
-	altPort    uint32
+	opt *GrpcOpt
 }
 
-func NewGrpcHealthCheck(conf *GrpcConfig, timeout time.Duration, tlsEnabled bool, tlsConf *tls.Config) *GrpcHealthCheck {
+func NewGrpcHealthCheck(opt *GrpcOpt) *GrpcHealthCheck {
 	return &GrpcHealthCheck{
-		conf:       conf,
-		tlsEnabled: tlsEnabled,
-		timeout:    timeout,
-		tlsConf:    tlsConf,
+		opt: opt,
 	}
-}
-
-func (h *GrpcHealthCheck) SetAltPort(altPort uint32) {
-	h.altPort = altPort
 }
 
 func (h *GrpcHealthCheck) Check(host string) error {
@@ -42,11 +55,16 @@ func (h *GrpcHealthCheck) Check(host string) error {
 	}
 	defer conn.Close()
 
-	ctx, cancel := context.WithTimeout(context.Background(), h.timeout)
+	timeout := h.opt.Timeout
+	if timeout == 0 {
+		timeout = 5 * time.Second
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	client := healthpb.NewHealthClient(conn)
 	resp, err := client.Check(ctx, &healthpb.HealthCheckRequest{
-		Service: h.conf.ServiceName,
+		Service: h.opt.ServiceName,
 	})
 	if err != nil {
 		if stat, ok := status.FromError(err); ok {
@@ -69,22 +87,28 @@ func (h *GrpcHealthCheck) Check(host string) error {
 
 func (h *GrpcHealthCheck) makeGrpcConn(host string) (*grpc.ClientConn, error) {
 	var err error
-	host, err = FormatHost(host, h.altPort)
+	host, err = FormatHost(host, h.opt.AltPort)
 	if err != nil {
 		return nil, err
 	}
 	var opts []grpc.DialOption
-	if !h.tlsEnabled {
+	if !h.opt.TlsEnabled {
 		opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	} else {
-		opts = append(opts, grpc.WithTransportCredentials(credentials.NewTLS(h.tlsConf)))
+		opts = append(opts, grpc.WithTransportCredentials(credentials.NewTLS(h.opt.TlsConfig)))
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), h.timeout)
+
+	timeout := h.opt.Timeout
+	if timeout == 0 {
+		timeout = 5 * time.Second
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	conn, err := grpc.DialContext(ctx, host, opts...)
 	if err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
-			return nil, fmt.Errorf("fail to connect to %s within %s: %w", host, h.timeout, err)
+			return nil, fmt.Errorf("fail to connect to %s within %s: %w", host, timeout, err)
 		}
 		return nil, fmt.Errorf("fail to connect to %s: %w", host, err)
 	}

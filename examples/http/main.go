@@ -9,14 +9,14 @@ import (
 )
 
 func main() {
-	conf := &gohc.HttpConfig{
+	conf := &gohc.HttpOpt{
 		Host: "",
 		Path: "/",
-		Send: &gohc.PayloadConfig{
+		Send: &gohc.Payload{
 			Text:   "test",
 			Binary: nil,
 		},
-		Receive: &gohc.PayloadConfig{
+		Receive: &gohc.Payload{
 			Text:   "",
 			Binary: []byte("test"),
 		},
@@ -29,11 +29,13 @@ func main() {
 		},
 		CodecClientType: gohc.CodecClientType_HTTP1,
 		Method:          http.MethodGet,
+		Timeout:         5 * time.Second,
+		TlsEnabled:      false,
+		TlsConfig:       nil,
+		// you can set an alternative port for host which will override any port set in the host during check
+		AltPort: 0,
 	}
-	hc := gohc.NewHttpHealthCheck(conf, 5*time.Second, false, nil)
-
-	// you can set an alternative port for host which will override any port set in the host during check
-	//hc.SetAltPort(8090)
+	hc := gohc.NewHttpHealthCheck(conf)
 
 	err := hc.Check("localhost:8080")
 	if err != nil {

@@ -12,54 +12,112 @@ import (
 	"time"
 )
 
+type CodecClientType int32
+
+const (
+	CodecClientType_HTTP1 CodecClientType = 0
+	CodecClientType_HTTP2 CodecClientType = 1
+	// [#not-implemented-hide:] QUIC implementation is not production ready yet. Use this enum with
+	// caution to prevent accidental execution of QUIC code. I.e. `!= HTTP2` is no longer sufficient
+	// to distinguish HTTP1 and HTTP2 traffic.
+	CodecClientType_HTTP3 CodecClientType = 2
+)
+
+// Enum value maps for CodecClientType.
+var (
+	CodecClientType_name = map[int32]string{
+		0: "HTTP1",
+		1: "HTTP2",
+		2: "HTTP3",
+	}
+	CodecClientType_value = map[string]int32{
+		"HTTP1": 0,
+		"HTTP2": 1,
+		"HTTP3": 2,
+	}
+)
+
+// HttpOpt Describes the health check policy for a given endpoint.
+type HttpOpt struct {
+	// The value of the host header in the HTTP health check request
+	Host string
+	// Specifies the HTTP path that will be requested during health checking. For example
+	// */healthcheck*.
+	Path string
+	// HTTP specific payload.
+	Send *Payload
+	// HTTP specific response.
+	Receive *Payload
+	// Specifies a list of HTTP headers that should be added to each request that is sent to the
+	// health checked cluster.
+	Headers http.Header
+	// Specifies a list of HTTP response statuses considered healthy. If provided, replaces default
+	// 200-only policy - 200 must be included explicitly as needed. Ranges follow half-open
+	// semantics of Int64Range. The start and end of each
+	ExpectedStatuses *IntRange
+	// Use specified application protocol for health checks.
+	CodecClientType CodecClientType
+	// HTTP Method that will be used for health checking, default is "GET".
+	// If a non-200 response is expected by the method, it needs to be set in expected_statuses.
+	Method string
+	// Timeout for the http health check request. If left empty (default to 5s)
+	Timeout time.Duration
+	// TlsEnabled set to true if the gRPC health check request should be sent over TLS.
+	TlsEnabled bool
+	// TlsConfig specifies the TLS configuration to use for TLS enabled gRPC health check requests.
+	TlsConfig *tls.Config
+	// AltPort specifies the port to use for gRPC health check requests.
+	// If left empty it taks the port from host during check.
+	AltPort uint32
+}
+
 type HttpHealthCheck struct {
 	httpClient *http.Client
-	httpHcConf *HttpConfig
-	tlsEnabled bool
-	altPort    uint32
+	opt        *HttpOpt
 }
 
-func NewHttpHealthCheck(httpHcConf *HttpConfig, timeout time.Duration, tlsEnabled bool, tlsConf *tls.Config) *HttpHealthCheck {
+func NewHttpHealthCheck(opt *HttpOpt) *HttpHealthCheck {
 	return &HttpHealthCheck{
-		httpClient: makeHttpClient(httpHcConf.CodecClientType, tlsConf, timeout),
-		httpHcConf: httpHcConf,
-		tlsEnabled: tlsEnabled,
+		httpClient: makeHttpClient(opt.CodecClientType, opt.TlsConfig, opt.Timeout),
+		opt:        opt,
 	}
-}
-
-func (h *HttpHealthCheck) SetAltPort(altPort uint32) {
-	h.altPort = altPort
 }
 
 func (h *HttpHealthCheck) Check(host string) error {
 	var err error
-	host, err = FormatHost(host, h.altPort)
+	host, err = FormatHost(host, h.opt.AltPort)
 	if err != nil {
 		return err
 	}
 	protocol := "http"
-	if h.tlsEnabled {
+	if h.opt.TlsEnabled {
 		protocol = "https"
 	}
-	url := fmt.Sprintf("%s://%s%s", protocol, host, h.httpHcConf.Path)
+
+	path := h.opt.Path
+	if path == "" {
+		path = "/"
+	}
+
+	url := fmt.Sprintf("%s://%s%s", protocol, host, path)
 
 	method := http.MethodGet
-	if h.httpHcConf.Method != "" {
-		method = strings.ToUpper(h.httpHcConf.Method)
+	if h.opt.Method != "" {
+		method = strings.ToUpper(h.opt.Method)
 	}
 	var body io.Reader
-	if h.httpHcConf.Send != nil {
-		body = bytes.NewReader(h.httpHcConf.Send.GetData())
+	if h.opt.Send != nil {
+		body = bytes.NewReader(h.opt.Send.GetData())
 	}
 	req, err := http.NewRequest(method, url, body)
 	if err != nil {
 		return err
 	}
-	if h.httpHcConf.Host != "" {
-		req.Host = h.httpHcConf.Host
+	if h.opt.Host != "" {
+		req.Host = h.opt.Host
 	}
-	if h.httpHcConf.Headers != nil {
-		req.Header = h.httpHcConf.Headers
+	if h.opt.Headers != nil {
+		req.Header = h.opt.Headers
 	}
 
 	resp, err := h.httpClient.Do(req)
@@ -69,20 +127,20 @@ func (h *HttpHealthCheck) Check(host string) error {
 	defer resp.Body.Close()
 	start := int64(200)
 	end := int64(201)
-	if h.httpHcConf.ExpectedStatuses != nil {
-		start = h.httpHcConf.ExpectedStatuses.Start
-		end = h.httpHcConf.ExpectedStatuses.End
+	if h.opt.ExpectedStatuses != nil {
+		start = h.opt.ExpectedStatuses.Start
+		end = h.opt.ExpectedStatuses.End
 	}
 	statusCode := int64(resp.StatusCode)
 	if statusCode < start || statusCode >= end {
 		return fmt.Errorf("unexpected status code, got %d not in range [%d, %d)", statusCode, start, end)
 	}
-	if h.httpHcConf.Receive != nil {
+	if h.opt.Receive != nil {
 		b, err := io.ReadAll(resp.Body)
 		if err != nil {
 			return fmt.Errorf("failed to read response body: %v", err)
 		}
-		if !bytes.Contains(b, h.httpHcConf.Receive.GetData()) {
+		if !bytes.Contains(b, h.opt.Receive.GetData()) {
 			return fmt.Errorf("response body does not contains expected data")
 		}
 	}
@@ -111,6 +169,9 @@ func makeHttpClient(codec CodecClientType, tlsConf *tls.Config, timeout time.Dur
 			ExpectContinueTimeout: 1 * time.Second,
 			TLSClientConfig:       tlsConf,
 		}
+	}
+	if timeout == 0 {
+		timeout = 5 * time.Second
 	}
 	httpClient := &http.Client{
 		Transport: roundTripper,
