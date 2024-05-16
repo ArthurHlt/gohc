@@ -8,7 +8,7 @@ import (
 	"github.com/ArthurHlt/gohc"
 )
 
-var _ = FDescribe("Chains", func() {
+var _ = Describe("Chains", func() {
 	var lis net.Listener
 	var tcpHc *gohc.TcpHealthCheck
 	var icmpHc *gohc.IcmpHealthCheck
