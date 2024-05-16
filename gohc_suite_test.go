@@ -1,6 +1,7 @@
 package gohc_test
 
 import (
+	"fmt"
 	"net"
 	"net/url"
 	"strings"
@@ -92,4 +93,24 @@ func setConnHandlerListener(lis net.Listener, handler func(conn net.Conn)) {
 			}(conn)
 		}
 	}()
+}
+
+type TestHealthCheck struct {
+	err error
+}
+
+func (h *TestHealthCheck) Check(host string) error {
+	return h.err
+}
+
+func (h *TestHealthCheck) String() string {
+	return "TestHealthCheck"
+}
+
+func NewTestHealthCheck() *TestHealthCheck {
+	return &TestHealthCheck{err: nil}
+}
+
+func NewTestHealthCheckErr() *TestHealthCheck {
+	return &TestHealthCheck{err: fmt.Errorf("an error")}
 }
