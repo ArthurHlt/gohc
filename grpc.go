@@ -114,3 +114,7 @@ func (h *GrpcHealthCheck) makeGrpcConn(host string) (*grpc.ClientConn, error) {
 	}
 	return conn, nil
 }
+
+func (h *GrpcHealthCheck) String() string {
+	return fmt.Sprintf("GrpcHealthCheck, service name '%s'", h.opt.ServiceName)
+}

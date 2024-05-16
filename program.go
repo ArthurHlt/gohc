@@ -106,6 +106,10 @@ func (h *ProgramHealthCheck) Check(host string) error {
 	return nil
 }
 
+func (h *ProgramHealthCheck) String() string {
+	return "ProgramHealthCheck"
+}
+
 func tlsConfToData(tlsConf *ProgramTlsOpt) *programDataTls {
 	if tlsConf == nil {
 		return &programDataTls{}

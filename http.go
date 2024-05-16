@@ -179,3 +179,7 @@ func makeHttpClient(codec CodecClientType, tlsConf *tls.Config, timeout time.Dur
 	}
 	return httpClient
 }
+
+func (h *HttpHealthCheck) String() string {
+	return "HttpHealthCheck"
+}

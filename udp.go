@@ -24,8 +24,7 @@ var destUnCodeTxt = map[int]string{
 }
 
 type UdpOpt struct {
-	// TCP specific payload.
-	// Empty payloads imply a connect-only health check.
+	// Udp specific payload to send.
 	// If left empty (default to "test-gohc")
 	Send *Payload
 	// When checking the response, “fuzzy” matching is performed such that each
@@ -269,4 +268,8 @@ func (h *UdpHealthCheck) checkWithReceive(host string) error {
 	}
 
 	return nil
+}
+
+func (h *UdpHealthCheck) String() string {
+	return "UdpHealthCheck"
 }

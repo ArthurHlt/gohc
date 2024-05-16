@@ -95,3 +95,7 @@ func (h *TcpHealthCheck) makeNetConn(host string) (net.Conn, error) {
 	}
 	return dialer.Dial("tcp", host)
 }
+
+func (h *TcpHealthCheck) String() string {
+	return "TcpHealthCheck"
+}

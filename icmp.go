@@ -198,3 +198,7 @@ func (h *IcmpHealthCheck) ping(conn *icmp.PacketConn, ip net.IP) error {
 	}
 	return errMess
 }
+
+func (h *IcmpHealthCheck) String() string {
+	return "IcmpHealthCheck"
+}

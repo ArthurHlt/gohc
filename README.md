@@ -12,6 +12,8 @@ Different type are:
   - Send data and check for received data.
   - A weaker method which ping the server first and then send data over udp and wait until timeout to ensure
     to **not** receive Port Unreachable ICMP error. This method require root privileges to capture this ICMP reply.
+- Chains: Allow to chain multiple healthchecks and execute them in parallel or in sequence with or without requiring 
+  all checks passing.
 
 **Note**: Types `http`, `Tcp`, `GRPC` and `Program` allow tls support. You can, for example, do tcp+tls test.
 
