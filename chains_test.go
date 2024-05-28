@@ -44,7 +44,7 @@ var _ = Describe("Chains", func() {
 
 					Expect(err).ToNot(BeNil())
 					Expect(err.Error()).To(ContainSubstring("TcpHealthCheck"))
-					Expect(err.Error()).To(ContainSubstring("IcmpHealthCheck"))
+					Expect(err.Error()).To(ContainSubstring("TestHealthCheck"))
 				})
 			})
 			When("With requiring all check passing", func() {
@@ -70,7 +70,7 @@ var _ = Describe("Chains", func() {
 
 					Expect(err).ToNot(BeNil())
 					Expect(err.Error()).To(ContainSubstring("TcpHealthCheck"))
-					Expect(err.Error()).ToNot(ContainSubstring("IcmpHealthCheck"))
+					Expect(err.Error()).ToNot(ContainSubstring("TestHealthCheck"))
 				})
 			})
 		})
@@ -97,7 +97,7 @@ var _ = Describe("Chains", func() {
 
 					Expect(err).ToNot(BeNil())
 					Expect(err.Error()).To(ContainSubstring("TcpHealthCheck"))
-					Expect(err.Error()).To(ContainSubstring("IcmpHealthCheck"))
+					Expect(err.Error()).To(ContainSubstring("TestHealthCheck"))
 				})
 			})
 			When("With requiring all check passing", func() {
@@ -123,7 +123,7 @@ var _ = Describe("Chains", func() {
 
 					Expect(err).ToNot(BeNil())
 					Expect(err.Error()).To(ContainSubstring("TcpHealthCheck"))
-					Expect(err.Error()).To(ContainSubstring("IcmpHealthCheck"))
+					Expect(err.Error()).To(ContainSubstring("TestHealthCheck"))
 				})
 			})
 		})
