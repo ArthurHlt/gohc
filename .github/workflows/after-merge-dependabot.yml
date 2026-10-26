@@ -14,44 +14,40 @@ jobs:
     steps:
       - name: Fetch dependabot metadata
         id: dependabot-metadata
-        uses: dependabot/fetch-metadata@v1.1.1
+        uses: dependabot/fetch-metadata@v3
         with:
           github-token: "${{ secrets.GITHUB_TOKEN }}"
 
-      - uses: oprypin/find-latest-tag@v1
+      - uses: oprypin/find-latest-tag@v1.1.3
         id: octokit
         with:
           repository: ${{ github.repository }}
           prefix: v
 
-      - name: Parse last release
-        id: semver_parser
-        uses: booxmedialtd/ws-action-parse-semver@v1
-        with:
-          input_string: '${{ steps.octokit.outputs.tag }}'
-          version_extractor_regex: 'v(.*)$'
-
       - name: Compute tag
-        id: compte_tag
+        id: compute_tag
+        env:
+          LAST_TAG: ${{ steps.octokit.outputs.tag }}
+          UPDATE_TYPE: ${{ steps.dependabot-metadata.outputs.update-type }}
         run: |
-          major=${{ steps.semver_parser.outputs.major }}
-          minor=${{ steps.semver_parser.outputs.minor }}
-          patch=${{ steps.semver_parser.outputs.patch }}
-          if [ "${{ steps.dependabot-metadata.outputs.update-type  }}" == "version-update:semver-minor" ]; then
+          IFS=. read -r major minor patch <<< "${LAST_TAG#v}"
+          if [ "$UPDATE_TYPE" == "version-update:semver-minor" ]; then
             minor=$((minor+1))
             patch=0
             echo "::warning::bumping minor version"
-          elif [ "${{ steps.dependabot-metadata.outputs.update-type  }}" == "version-update:semver-patch" ]; then
+          elif [ "$UPDATE_TYPE" == "version-update:semver-patch" ]; then
             patch=$((patch+1))
             echo "::warning::bumping patch version"
           fi
           tag="v${major}.${minor}.${patch}"
-          echo "::set-output name=tag::${tag}"
+          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
           echo "::warning::tag == ${tag}"
 
+      # AUTO_MERGE_TOKEN rather than GITHUB_TOKEN so the new tag triggers downstream workflows
       - name: Create tag
-        uses: tvdias/github-tagger@v0.0.1
-        if: steps.compte_tag.outputs.tag != steps.semver_parser.outputs.fullversion
-        with:
-          repo-token: "${{ secrets.AUTO_MERGE_TOKEN }}"
-          tag: "${{ steps.compte_tag.outputs.tag }}"
+        if: steps.compute_tag.outputs.tag != steps.octokit.outputs.tag
+        env:
+          GH_TOKEN: ${{ secrets.AUTO_MERGE_TOKEN }}
+          TAG: ${{ steps.compute_tag.outputs.tag }}
+        run: |
+          gh api "repos/${{ github.repository }}/git/refs" -f ref="refs/tags/${TAG}" -f sha="${GITHUB_SHA}"
