@@ -21,7 +21,6 @@ var _ = Describe("Http", func() {
 				server = ghttp.NewServer()
 			})
 			AfterEach(func() {
-				//shut down the httpServer between tests
 				server.Close()
 			})
 			It("should return nil on the most basic test on path / and 200 status code", func() {
@@ -183,7 +182,6 @@ var _ = Describe("Http", func() {
 			server = ghttp.NewTLSServer()
 		})
 		AfterEach(func() {
-			//shut down the httpServer between tests
 			server.Close()
 		})
 		It("should return an error if tls not enabled", func() {

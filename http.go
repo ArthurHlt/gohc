@@ -23,7 +23,6 @@ const (
 	CodecClientType_HTTP3 CodecClientType = 2
 )
 
-// Enum value maps for CodecClientType.
 var (
 	CodecClientType_name = map[int32]string{
 		0: "HTTP1",

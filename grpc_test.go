@@ -32,7 +32,6 @@ var _ = Describe("Grpc", func() {
 			}()
 		})
 		AfterEach(func() {
-			//shut down the httpServer between tests
 			server.Stop()
 			lis.Close()
 		})
@@ -55,7 +54,6 @@ var _ = Describe("Grpc", func() {
 		When("the service is not empty", func() {
 			It("should return an error when service not found", func() {
 				hc := NewGrpcHealthCheck(&GrpcOpt{ServiceName: "test"})
-				//healthServer.SetServingStatus("test", healthpb.HealthCheckResponse_NOT_SERVING)
 
 				err := hc.Check(lis.Addr().String())
 
@@ -93,7 +91,6 @@ var _ = Describe("Grpc", func() {
 			}()
 		})
 		AfterEach(func() {
-			//shut down the httpServer between tests
 			server.Stop()
 			lis.Close()
 		})
