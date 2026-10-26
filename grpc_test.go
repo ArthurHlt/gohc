@@ -79,6 +79,8 @@ var _ = Describe("Grpc", func() {
 			}
 			lis, err = tls.Listen("tcp4", "127.0.0.1:0", &tls.Config{
 				Certificates: []tls.Certificate{cert},
+				// gRPC clients refuse TLS peers that don't negotiate ALPN.
+				NextProtos: []string{"h2"},
 			})
 			Expect(err).To(BeNil())
 			server = grpc.NewServer()

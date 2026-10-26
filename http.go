@@ -154,7 +154,7 @@ func makeHttpClient(codec CodecClientType, tlsConf *tls.Config, timeout time.Dur
 	var roundTripper http.RoundTripper
 	switch codec {
 	case CodecClientType_HTTP3:
-		roundTripper = &http3.RoundTripper{
+		roundTripper = &http3.Transport{
 			TLSClientConfig: tlsConf,
 		}
 	default:
