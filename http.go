@@ -119,7 +119,13 @@ func (h *HttpHealthCheck) Check(host string) error {
 		req.Header = h.opt.Headers
 	}
 
-	resp, err := h.httpClient.Do(req)
+	client := h.httpClient
+	if h.opt.CodecClientType == CodecClientType_HTTP3 {
+		client = makeHttpClient(h.opt.CodecClientType, h.opt.TlsConfig, h.opt.Timeout)
+		defer client.Transport.(*http3.Transport).Close()
+	}
+
+	resp, err := client.Do(req)
 	if err != nil {
 		return err
 	}
@@ -159,11 +165,12 @@ func makeHttpClient(codec CodecClientType, tlsConf *tls.Config, timeout time.Dur
 		}
 	default:
 		roundTripper = &http.Transport{
-			Proxy:                 http.ProxyFromEnvironment,
-			DialContext:           dialer.DialContext,
-			ForceAttemptHTTP2:     true,
-			MaxIdleConns:          100,
-			IdleConnTimeout:       90 * time.Second,
+			Proxy:             http.ProxyFromEnvironment,
+			DialContext:       dialer.DialContext,
+			ForceAttemptHTTP2: true,
+			// Each check must open a fresh connection: a reused one can hide a
+			// backend that no longer accepts new connections.
+			DisableKeepAlives:     true,
 			TLSHandshakeTimeout:   10 * time.Second,
 			ExpectContinueTimeout: 1 * time.Second,
 			TLSClientConfig:       tlsConf,
