@@ -32,7 +32,6 @@ var _ = Describe("Grpc", func() {
 			}()
 		})
 		AfterEach(func() {
-			//shut down the httpServer between tests
 			server.Stop()
 			lis.Close()
 		})
@@ -55,7 +54,6 @@ var _ = Describe("Grpc", func() {
 		When("the service is not empty", func() {
 			It("should return an error when service not found", func() {
 				hc := NewGrpcHealthCheck(&GrpcOpt{ServiceName: "test"})
-				//healthServer.SetServingStatus("test", healthpb.HealthCheckResponse_NOT_SERVING)
 
 				err := hc.Check(lis.Addr().String())
 
@@ -81,6 +79,8 @@ var _ = Describe("Grpc", func() {
 			}
 			lis, err = tls.Listen("tcp4", "127.0.0.1:0", &tls.Config{
 				Certificates: []tls.Certificate{cert},
+				// gRPC clients refuse TLS peers that don't negotiate ALPN.
+				NextProtos: []string{"h2"},
 			})
 			Expect(err).To(BeNil())
 			server = grpc.NewServer()
@@ -93,7 +93,6 @@ var _ = Describe("Grpc", func() {
 			}()
 		})
 		AfterEach(func() {
-			//shut down the httpServer between tests
 			server.Stop()
 			lis.Close()
 		})

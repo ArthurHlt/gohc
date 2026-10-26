@@ -6,6 +6,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/ghttp"
+	"github.com/quic-go/quic-go/http3"
 	"io"
 	"net"
 	"net/http"
@@ -21,7 +22,6 @@ var _ = Describe("Http", func() {
 				server = ghttp.NewServer()
 			})
 			AfterEach(func() {
-				//shut down the httpServer between tests
 				server.Close()
 			})
 			It("should return nil on the most basic test on path / and 200 status code", func() {
@@ -183,7 +183,6 @@ var _ = Describe("Http", func() {
 			server = ghttp.NewTLSServer()
 		})
 		AfterEach(func() {
-			//shut down the httpServer between tests
 			server.Close()
 		})
 		It("should return an error if tls not enabled", func() {
@@ -207,6 +206,47 @@ var _ = Describe("Http", func() {
 
 			err := hc.Check(urlToHost(server.URL()))
 			Expect(err).To(BeNil())
+		})
+	})
+
+	Context("Http3 Server", func() {
+		var server *http3.Server
+		var udpConn net.PacketConn
+		var remoteAddrs []string
+		BeforeEach(func() {
+			cert, err := tls.X509KeyPair(LocalhostCert, LocalhostKey)
+			Expect(err).To(BeNil())
+			udpConn, err = net.ListenPacket("udp4", "127.0.0.1:0")
+			Expect(err).To(BeNil())
+
+			remoteAddrs = nil
+			server = &http3.Server{
+				TLSConfig: http3.ConfigureTLSConfig(&tls.Config{
+					Certificates: []tls.Certificate{cert},
+				}),
+				Handler: http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+					remoteAddrs = append(remoteAddrs, req.RemoteAddr)
+				}),
+			}
+			go server.Serve(udpConn)
+		})
+		AfterEach(func() {
+			server.Close()
+			udpConn.Close()
+		})
+		It("should open a new connection on each check", func() {
+			hc := NewHttpHealthCheck(&HttpOpt{
+				CodecClientType: CodecClientType_HTTP3,
+				TlsEnabled:      true,
+				TlsConfig: &tls.Config{
+					InsecureSkipVerify: true,
+				},
+			})
+
+			Expect(hc.Check(udpConn.LocalAddr().String())).To(BeNil())
+			Expect(hc.Check(udpConn.LocalAddr().String())).To(BeNil())
+			Expect(remoteAddrs).To(HaveLen(2))
+			Expect(remoteAddrs[0]).ToNot(Equal(remoteAddrs[1]))
 		})
 	})
 
