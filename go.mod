@@ -7,7 +7,7 @@ require (
 	github.com/onsi/ginkgo/v2 v2.33.1
 	github.com/onsi/gomega v1.44.0
 	github.com/quic-go/quic-go v0.64.1
-	golang.org/x/net v0.61.0
+	golang.org/x/net v0.62.0
 	google.golang.org/grpc v1.84.0
 )
 
