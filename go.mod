@@ -4,7 +4,7 @@ go 1.27
 
 require (
 	github.com/google/gopacket v1.1.19
-	github.com/onsi/ginkgo/v2 v2.33.1
+	github.com/onsi/ginkgo/v2 v2.34.0
 	github.com/onsi/gomega v1.44.0
 	github.com/quic-go/quic-go v0.64.1
 	golang.org/x/net v0.61.0
